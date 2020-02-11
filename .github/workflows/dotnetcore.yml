@@ -14,9 +14,11 @@ jobs:
       with:
         dotnet-version: 3.0.102
     - name: Build with dotnet
-      run: dotnet build "blob-scan.csproj" --configuration Release
+      run: dotnet build "./source/blob-scan.csproj" --configuration Release --output ./output
     - name: 'Deploy to Azure Function'
       uses: Azure/functions-action@v1
+      id: fa
       with:
-        app-name: avblobscan
+        app-name: BlobAVScan
         publish-profile: ${{ secrets.FUNCTIONSECRET }}
+        package: './output'
