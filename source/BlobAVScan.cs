@@ -3,9 +3,9 @@ using System.IO;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Auth;
-using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Azure.Storage;
+using Microsoft.Azure.Storage.Auth;
+using Microsoft.Azure.Storage.Blob;
 using nClam;
 
 namespace techffie.blobscan
@@ -25,12 +25,13 @@ namespace techffie.blobscan
             {
                 case ClamScanResults.Clean:
                     log.LogInformation("The file is clean!");
-                    MoveFileFromBlob(name);
+                    MoveFileFromBlob(name, log);
                     log.LogInformation("Move File {0}", name);
                     break;
                 case ClamScanResults.VirusDetected:
                     log.LogInformation("Virus Found!");
                     log.LogInformation("Virus name: {0}", scanResult.InfectedFiles.Count > 0 ? scanResult.InfectedFiles[0].FileName.ToString() : string.Empty);
+                    MoveFileFromBlob(name, log);
                     break;
                 case ClamScanResults.Error:
                     log.LogInformation("Error scanning file: {0}", scanResult.RawResult);
@@ -43,7 +44,7 @@ namespace techffie.blobscan
             return System.Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process);
         }
 
-        public static string MoveFileFromBlob(string sourceFileName)
+        public static string MoveFileFromBlob(string sourceFileName, ILogger log)
         {
             CloudStorageAccount storageAccount = new CloudStorageAccount(new StorageCredentials(GetEnvironmentVariable("account_name"), GetEnvironmentVariable("key_value")), true);
             CloudBlobClient cloudBlobClient = storageAccount.CreateCloudBlobClient();
@@ -52,7 +53,19 @@ namespace techffie.blobscan
             
             CloudBlockBlob sourceBlob = sourceContainer.GetBlockBlobReference(sourceFileName);
             CloudBlockBlob targetBlob = targetContainer.GetBlockBlobReference(sourceFileName);
-            return targetBlob.StartCopyAsync(sourceBlob).Result;
+            targetBlob.StartCopy(sourceBlob);
+            var status = targetBlob.Exists() ? "Success" : "Fail";
+            log.LogInformation("Move File Result : {0}", status);
+
+            if (targetBlob.Exists())
+            {
+                var deleteStatus = sourceBlob.DeleteIfExists();
+                log.LogInformation("Delete File Result : {0}", deleteStatus);
+            }
+
+            return status;
         }
+
+
     }
 }
