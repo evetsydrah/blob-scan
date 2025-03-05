@@ -1,4 +1,4 @@
-param location string = 'eastus'
+param location string = 'southeastasia'
 
 @description('The name of the containter instance that you wish to create.')
 param clamavname string = 'aciclamav-${uniqueString(resourceGroup().id)}'
